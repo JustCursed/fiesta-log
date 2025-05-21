@@ -1,0 +1,107 @@
+buildscript {
+	repositories {
+		mavenCentral()
+		maven { url = "https://plugins.gradle.org/m2" }
+		maven { url = 'https://maven.minecraftforge.net' }
+	}
+	dependencies {
+		classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.5'
+		classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+	}
+}
+
+apply plugin: 'idea'
+apply plugin: 'scala'
+apply plugin: 'com.google.protobuf'
+apply plugin: 'net.minecraftforge.gradle'
+
+group = 'tech.funkyra.fiesta'
+archivesBaseName = 'fiesta'
+def grpcVersion = '1.72.0'
+
+sourceCompatibility = targetCompatibility = compileScala.sourceCompatibility = compileScala.targetCompatibility = '1.8'
+
+minecraft {
+	mappings channel: 'stable', version: '39-1.12'
+
+	runs {
+		client {
+			workingDirectory project.file('run')
+			property 'forge.logging.markers', 'REGISTRIES'
+			property 'forge.logging.console.level', 'debug'
+			mods {
+				fiesta {
+					source sourceSets.main
+				}
+			}
+		}
+
+		server {
+			workingDirectory project.file('run')
+			property 'forge.logging.markers', 'REGISTRIES'
+			property 'forge.logging.console.level', 'debug'
+			args += ['nogui']
+			mods {
+				fiesta {
+					source sourceSets.main
+				}
+			}
+		}
+	}
+}
+
+repositories {
+	mavenCentral()
+	mavenLocal()
+	google()
+}
+
+dependencies {
+	minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
+	compileOnly 'org.scala-lang:scala-library:2.11.7'
+	compileOnly fileTree(dir: project.lib, include: [], exclude: [])
+
+	runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
+	implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+	implementation "io.grpc:grpc-stub:${grpcVersion}"
+}
+
+protobuf {
+	protoc {
+		artifact = "com.google.protobuf:protoc:3.25.7"
+	}
+	plugins {
+		grpc {
+			artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+		}
+	}
+	generateProtoTasks {
+		all()*.plugins {
+			grpc {}
+		}
+	}
+}
+
+sourceSets {
+	main {
+		proto {
+			srcDirs 'src/main/proto'
+		}
+	}
+}
+
+processResources {
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+jar {
+
+}
+
+tasks.register('prepareAssets', Copy) {
+	group = 'build'
+	from project.file('src/main/resources')
+	into project.file('build/classes/java/main')
+}
+
+classes.dependsOn(prepareAssets)
